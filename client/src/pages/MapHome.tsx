@@ -4,7 +4,7 @@ import { MOCK_USERS, User } from "@/lib/mockData";
 import { UserPin } from "@/components/UserPin";
 import { ProfileDrawer } from "@/components/ProfileDrawer";
 import { Button } from "@/components/ui/button";
-import { Filter, Locate, Zap } from "lucide-react";
+import { Filter, Locate, Shield, Menu } from "lucide-react";
 import { NavBar } from "@/components/NavBar";
 
 export default function MapHome() {
@@ -20,29 +20,37 @@ export default function MapHome() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground relative touch-none select-none">
       {/* Map Header - Floating */}
-      <div className="absolute top-0 left-0 right-0 z-40 p-4 pt-6 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none">
-        <div className="flex items-center justify-between pointer-events-auto max-w-md mx-auto w-full">
-            <div>
-                <h1 className="text-2xl font-display font-bold text-white drop-shadow-md flex items-center gap-2">
-                    LOCKR <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/20 font-mono text-muted-foreground">BETA</span>
-                </h1>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono">Secure Access</p>
+      <div className="absolute top-0 left-0 right-0 z-40 p-4 pt-6 pointer-events-none">
+        <div className="flex items-center justify-between pointer-events-auto max-w-md mx-auto w-full bg-card/80 backdrop-blur-lg border border-border/50 p-3 rounded-full shadow-lg">
+            <div className="flex items-center gap-3 pl-2">
+                 <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
+                    <Shield className="w-4 h-4 fill-current" />
+                 </div>
+                 <div>
+                    <h1 className="text-lg font-bold text-white leading-none">
+                        Lockr
+                    </h1>
+                    <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-status-secure animate-pulse" />
+                        SECURE • ENCRYPTED
+                    </p>
+                </div>
             </div>
             <div className="flex gap-2">
-                <Button size="icon" variant="ghost" className="rounded-xl bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/5">
-                    <Filter className="w-5 h-5 text-muted-foreground" />
+                <Button size="icon" variant="ghost" className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white">
+                    <Filter className="w-4 h-4" />
                 </Button>
-                 <Button size="icon" variant="ghost" className="rounded-xl bg-primary/10 text-primary hover:bg-primary/20 backdrop-blur-md border border-primary/20 shadow-[0_0_15px_theme(colors.primary/20)]">
-                    <Zap className="w-5 h-5 fill-current" />
+                 <Button size="icon" variant="ghost" className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white">
+                    <Menu className="w-4 h-4" />
                 </Button>
             </div>
         </div>
       </div>
 
       {/* Map Container */}
-      <div className="w-full h-full relative bg-locker-mesh" ref={constraintsRef}>
+      <div className="w-full h-full relative bg-midnight-grid" ref={constraintsRef}>
         <motion.div 
-            className="absolute bg-locker-mesh w-[300vw] h-[300vh]"
+            className="absolute bg-midnight-grid w-[300vw] h-[300vh]"
             style={{ 
                 left: '-100vw',
                 top: '-100vh'
@@ -52,14 +60,14 @@ export default function MapHome() {
             dragElastic={0.1}
             dragMomentum={false}
         >
-             {/* Map Decoration - Streets/Blocks (Abstract) */}
-             <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" width="100%" height="100%">
-                 {/* Random abstract paths to look like streets */}
-                 <path d="M 0 500 Q 500 500 1000 0" stroke="white" strokeWidth="2" fill="none" />
-                 <path d="M 500 0 L 500 2000" stroke="white" strokeWidth="2" fill="none" />
-                 <path d="M 0 1000 L 2000 1000" stroke="white" strokeWidth="1" fill="none" />
-                 <circle cx="50%" cy="50%" r="200" stroke="rgba(236, 72, 153, 0.2)" strokeWidth="4" fill="none" />
-             </svg>
+             {/* Map Decoration - Radar circles */}
+             <div className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
+                 <svg width="100%" height="100%">
+                    <circle cx="50%" cy="50%" r="200" stroke="rgba(18, 109, 127, 0.3)" strokeWidth="1" fill="none" />
+                    <circle cx="50%" cy="50%" r="400" stroke="rgba(18, 109, 127, 0.2)" strokeWidth="1" fill="none" />
+                    <circle cx="50%" cy="50%" r="600" stroke="rgba(18, 109, 127, 0.1)" strokeWidth="1" fill="none" />
+                 </svg>
+             </div>
 
              {/* Users */}
             {MOCK_USERS.map((user) => (
@@ -68,22 +76,19 @@ export default function MapHome() {
 
             {/* Current User location pulse */}
             <div className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                 <div className="w-96 h-96 rounded-full bg-primary/5 animate-pulse absolute -translate-x-1/2 -translate-y-1/2" />
-                 <div className="w-8 h-8 rounded-full bg-primary/20 absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center shadow-[0_0_20px_theme(colors.primary)]">
-                    <div className="w-3 h-3 bg-white rounded-full" />
+                 <div className="w-64 h-64 rounded-full bg-brand-primary/10 animate-pulse absolute -translate-x-1/2 -translate-y-1/2" />
+                 <div className="w-4 h-4 rounded-full bg-brand-primary border-2 border-white/50 absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center shadow-[0_0_20px_theme(colors.brand.primary)]">
                  </div>
             </div>
 
         </motion.div>
 
-         {/* Floating Recenter Button */}
+         {/* Location Badge */}
         <div className="absolute right-4 bottom-24 z-40">
-            <Button size="icon" className="rounded-full w-12 h-12 shadow-xl bg-card border border-white/10" onClick={() => {
-                // In a real app, this would reset the drag controls
-                alert("This would re-center the map to your location");
-            }}>
-                <Locate className="w-6 h-6 text-primary" />
-            </Button>
+            <div className="bg-card/80 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] text-muted-foreground font-medium shadow-xl flex items-center gap-2">
+                <Locate className="w-3 h-3 text-brand-primary" />
+                <span>Accuracy: ~200m</span>
+            </div>
         </div>
       </div>
 

@@ -5,12 +5,13 @@
 
 @theme inline {
   --font-sans: 'Inter', sans-serif;
-  --font-display: 'Outfit', sans-serif;
+  --font-display: 'Inter', sans-serif; /* Brand guide says Inter for everything, but keeping display separate if needed later */
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -31,40 +32,64 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+
+  /* Custom Brand Colors */
+  --color-brand-primary: hsl(var(--brand-primary));
+  --color-brand-secondary: hsl(var(--brand-secondary));
+  --color-brand-accent-warm: hsl(var(--brand-accent-warm));
+  --color-brand-accent-hot: hsl(var(--brand-accent-hot));
+  --color-status-secure: hsl(var(--status-secure));
 }
 
 :root {
-  /* Dark Mode Default - Industrial Locker Room Theme */
-  --background: 220 15% 10%; /* Gunmetal Dark */
-  --foreground: 220 10% 98%;
+  /* SafeMap/Lockr Midnight Indigo Theme */
+  
+  /* Core Backgrounds */
+  --background: 217 76% 13%; /* #081B3A Midnight Indigo */
+  --foreground: 0 0% 100%; /* White */
 
-  --card: 220 15% 14%; /* Lighter Gunmetal */
-  --card-foreground: 220 10% 98%;
+  --card: 218 70% 17%; /* #0D234A Slightly lighter surface */
+  --card-foreground: 0 0% 100%;
 
-  --popover: 220 15% 12%;
-  --popover-foreground: 220 10% 98%;
+  --popover: 218 70% 17%;
+  --popover-foreground: 0 0% 100%;
 
-  /* Keep the neon accents but maybe slightly more 'electric' */
-  --primary: 315 100% 50%; /* Electric Pink */
-  --primary-foreground: 0 0% 100%;
+  /* Brand Colors */
+  /* Primary CTA (Gold) per specs for buttons, but 'primary' token usually implies brand color. 
+     The spec says "Primary CTAs: Gold", "Trust: Teal". 
+     I will map --primary to Teal (Brand Identity) and create a separate utility for Gold CTA or use Accent.
+     Actually, Shadcn uses 'primary' for main buttons. Spec says Primary CTA = Gold.
+     So --primary should be Gold.
+  */
+  --primary: 36 92% 65%; /* #F8B654 Candle Gold */
+  --primary-foreground: 225 6% 3%; /* Onyx for contrast on gold */
 
-  --secondary: 190 100% 50%; /* Electric Blue */
-  --secondary-foreground: 220 15% 10%;
+  /* Secondary (Teal - Trust/Security) */
+  --secondary: 190 75% 28%; /* #126D7F Arcane Teal */
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 220 10% 20%;
-  --muted-foreground: 220 10% 60%;
+  /* Accents */
+  --accent: 218 70% 22%; /* Slightly lighter than card */
+  --accent-foreground: 0 0% 100%;
 
-  --accent: 220 10% 25%;
-  --accent-foreground: 220 10% 98%;
+  --muted: 214 24% 84%; /* #C9D3E0 Soft Smoke */
+  --muted-foreground: 214 24% 60%; 
 
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 220 10% 20%;
-  --input: 220 10% 20%;
-  --ring: 315 100% 50%;
+  --border: 222 45% 25%; /* #23345C Border Subtle */
+  --input: 222 45% 25%;
+  --ring: 36 92% 65%; /* Focus ring gold */
 
-  --radius: 0.5rem; /* Slightly more squared off for industrial feel */
+  --radius: 1rem;
+
+  /* Custom Brand Tokens (Raw HSL) */
+  --brand-primary: 190 75% 28%; /* Teal */
+  --brand-secondary: 274 48% 34%; /* Violet */
+  --brand-accent-warm: 36 92% 65%; /* Gold */
+  --brand-accent-hot: 333 60% 58%; /* Magenta */
+  --status-secure: 190 75% 28%; /* Teal */
 }
 
 @layer base {
@@ -72,10 +97,10 @@
     @apply border-border;
   }
   body {
-    @apply font-sans antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary-foreground;
+    @apply font-sans antialiased bg-background text-foreground selection:bg-brand-accent-warm/30 selection:text-white;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
+    @apply font-display tracking-tight font-bold;
   }
 }
 
@@ -84,7 +109,7 @@
     @apply bg-background/80 backdrop-blur-md border border-white/10;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-linear-to-r from-primary to-secondary;
+    @apply bg-clip-text text-transparent bg-linear-to-r from-brand-accent-warm to-brand-accent-hot;
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
@@ -94,10 +119,12 @@
     scrollbar-width: none;
   }
   
-  /* Industrial Mesh Pattern */
-  .bg-locker-mesh {
+  /* Midnight Map Texture */
+  .bg-midnight-grid {
     background-color: hsl(var(--background));
-    background-image: radial-gradient(circle at center, hsl(var(--muted)) 1.5px, transparent 1.5px);
-    background-size: 20px 20px;
+    background-image: 
+        linear-gradient(rgba(18, 109, 127, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(18, 109, 127, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }

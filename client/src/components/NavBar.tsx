@@ -14,7 +14,7 @@ export function NavBar() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-6 bg-transparent pointer-events-none">
-      <nav className="flex items-center justify-around max-w-md mx-auto pointer-events-auto bg-background/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-4 shadow-2xl">
+      <nav className="flex items-center justify-around max-w-md mx-auto pointer-events-auto bg-card/90 backdrop-blur-xl border border-white/10 rounded-full px-6 py-4 shadow-2xl">
         {navItems.map((item) => {
           const isActive = location === item.href;
           return (
@@ -22,16 +22,16 @@ export function NavBar() {
               <div
                 className={cn(
                   "flex flex-col items-center gap-1 transition-all duration-300 cursor-pointer group",
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  isActive ? "text-brand-accent-warm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <div className={cn(
                     "p-2 rounded-full transition-all duration-300 relative",
-                    isActive && "bg-primary/20"
+                    isActive && "bg-brand-accent-warm/10"
                 )}>
-                    <item.icon className={cn("w-6 h-6", isActive && "fill-primary/20")} strokeWidth={isActive ? 2.5 : 2} />
+                    <item.icon className={cn("w-6 h-6", isActive && "fill-brand-accent-warm/20")} strokeWidth={isActive ? 2.5 : 2} />
                     {isActive && (
-                        <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
+                        <span className="absolute inset-0 rounded-full bg-brand-accent-warm/20 animate-ping opacity-75" />
                     )}
                 </div>
               </div>
