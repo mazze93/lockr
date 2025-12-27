@@ -6,11 +6,11 @@ export function useAuth() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  const { data: authData, isLoading, error, refetch } = useQuery({
+  const { data: authData, isLoading, refetch } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: authAPI.getMe,
     retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const loginMutation = useMutation({
@@ -61,7 +61,6 @@ export function useAuth() {
     needsOnboarding: authData?.needsOnboarding ?? true,
     isAuthenticated: !!authData?.user,
     isLoading,
-    error,
 
     login: loginMutation.mutateAsync,
     signup: signupMutation.mutateAsync,

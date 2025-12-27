@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { authAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Lock, Eye, EyeOff, Mail, AlertCircle } from "lucide-react";
 
 export default function Auth() {
   const [, setLocation] = useLocation();
-  const { login, signup, isLoggingIn, isSigningUp, loginError, signupError, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -15,11 +16,27 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    setLocation("/");
-    return null;
-  }
+  const loginMutation = useMutation({
+    mutationFn: () => authAPI.login(email, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      setLocation("/onboarding");
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Login failed");
+    },
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: () => authAPI.signup(email, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      setLocation("/onboarding");
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Signup failed");
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,20 +52,14 @@ export default function Auth() {
       return;
     }
 
-    try {
-      if (mode === "login") {
-        await login({ email, password });
-      } else {
-        await signup({ email, password });
-      }
-      setLocation("/onboarding");
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    if (mode === "login") {
+      loginMutation.mutate();
+    } else {
+      signupMutation.mutate();
     }
   };
 
-  const currentError = error || loginError || signupError;
-  const isLoading = isLoggingIn || isSigningUp;
+  const isLoading = loginMutation.isPending || signupMutation.isPending;
 
   return (
     <div className="min-h-screen bg-midnight-grid flex flex-col items-center justify-center p-6">
@@ -73,7 +84,7 @@ export default function Auth() {
           <div className="flex bg-muted/30 rounded-full p-1 mb-6">
             <button
               type="button"
-              onClick={() => setMode("login")}
+              onClick={() => { setMode("login"); setError(null); }}
               className={`flex-1 py-2 text-sm font-medium rounded-full transition-all ${
                 mode === "login"
                   ? "bg-card text-white shadow-sm"
@@ -85,7 +96,7 @@ export default function Auth() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("signup")}
+              onClick={() => { setMode("signup"); setError(null); }}
               className={`flex-1 py-2 text-sm font-medium rounded-full transition-all ${
                 mode === "signup"
                   ? "bg-card text-white shadow-sm"
@@ -138,10 +149,10 @@ export default function Auth() {
             </div>
 
             {/* Error */}
-            {currentError && (
+            {error && (
               <div className="flex items-center gap-2 text-sm text-red-400 bg-red-900/20 p-3 rounded-lg border border-red-900/50">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {currentError}
+                {error}
               </div>
             )}
 

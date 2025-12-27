@@ -1,6 +1,6 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -10,33 +10,74 @@ import Profile from "@/pages/Profile";
 import Subscription from "@/pages/Subscription";
 import Auth from "@/pages/Auth";
 import Onboarding from "@/pages/Onboarding";
-import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import { authAPI } from "@/lib/api";
+
+function useAuthCheck() {
+  return useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: authAPI.getMe,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated, isLoading, needsOnboarding } = useAuth();
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        setLocation("/auth");
-      } else if (needsOnboarding) {
-        setLocation("/onboarding");
-      }
-    }
-  }, [isAuthenticated, isLoading, needsOnboarding, setLocation]);
+  const { data, isLoading } = useAuthCheck();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  if (!isAuthenticated || needsOnboarding) {
-    return null;
+  if (!data?.user) {
+    return <Redirect to="/auth" />;
+  }
+
+  if (data.needsOnboarding) {
+    return <Redirect to="/onboarding" />;
+  }
+
+  return <Component />;
+}
+
+function AuthRoute({ component: Component }: { component: React.ComponentType }) {
+  const { data, isLoading } = useAuthCheck();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (data?.user && !data.needsOnboarding) {
+    return <Redirect to="/" />;
+  }
+
+  if (data?.user && data.needsOnboarding) {
+    return <Redirect to="/onboarding" />;
+  }
+
+  return <Component />;
+}
+
+function OnboardingRoute({ component: Component }: { component: React.ComponentType }) {
+  const { data, isLoading } = useAuthCheck();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!data?.user) {
+    return <Redirect to="/auth" />;
+  }
+
+  if (!data.needsOnboarding) {
+    return <Redirect to="/" />;
   }
 
   return <Component />;
@@ -45,8 +86,12 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
-      <Route path="/auth" component={Auth} />
-      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/auth">
+        {() => <AuthRoute component={Auth} />}
+      </Route>
+      <Route path="/onboarding">
+        {() => <OnboardingRoute component={Onboarding} />}
+      </Route>
       <Route path="/">
         {() => <ProtectedRoute component={MapHome} />}
       </Route>

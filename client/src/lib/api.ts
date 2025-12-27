@@ -1,6 +1,11 @@
-import { queryClient } from "./queryClient";
-
 const API_BASE = "/api";
+
+export class AuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthError";
+  }
+}
 
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -11,6 +16,10 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
     },
     credentials: "include",
   });
+
+  if (response.status === 401) {
+    throw new AuthError("Authentication required");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Request failed" }));
@@ -37,13 +46,30 @@ export const authAPI = {
   logout: () =>
     fetchAPI<{ message: string }>("/auth/logout", { method: "POST" }),
 
-  getMe: () =>
-    fetchAPI<{
-      user: { id: string; email: string; isOnline: boolean; lastSeenAt: string };
-      profile: any | null;
-      location: { latitude: number; longitude: number; blurRadiusMeters: number; ghostModeEnabled: boolean } | null;
-      needsOnboarding: boolean;
-    }>("/auth/me"),
+  getMe: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/me`, {
+        credentials: "include",
+      });
+      
+      if (response.status === 401) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      return response.json() as Promise<{
+        user: { id: string; email: string; isOnline: boolean; lastSeenAt: string };
+        profile: any | null;
+        location: { latitude: number; longitude: number; blurRadiusMeters: number; ghostModeEnabled: boolean } | null;
+        needsOnboarding: boolean;
+      }>;
+    } catch {
+      return null;
+    }
+  },
 };
 
 // Profile API

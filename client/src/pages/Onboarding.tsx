@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { profileAPI, locationAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +17,7 @@ const GENDERS = [
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
-  const { user, needsOnboarding, isLoading, createProfile, updateLocation } = useAuth();
+  const queryClient = useQueryClient();
   
   const [step, setStep] = useState(1);
   const [headline, setHeadline] = useState("");
@@ -24,16 +25,40 @@ export default function Onboarding() {
   const [gender, setGender] = useState("masculine");
   const [bio, setBio] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      setLocation("/auth");
-    } else if (!isLoading && user && !needsOnboarding) {
+  const createProfileMutation = useMutation({
+    mutationFn: () => profileAPI.create({
+      headline: headline.trim(),
+      age: parseInt(age, 10),
+      gender,
+      bio: bio.trim() || undefined,
+      tags: selectedTags,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      setStep(2);
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Failed to create profile");
+    },
+  });
+
+  const updateLocationMutation = useMutation({
+    mutationFn: (data: { latitude: number; longitude: number }) => 
+      locationAPI.update({
+        ...data,
+        blurRadiusMeters: 200,
+        ghostModeEnabled: false,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
       setLocation("/");
-    }
-  }, [user, needsOnboarding, isLoading, setLocation]);
+    },
+    onError: () => {
+      setLocation("/");
+    },
+  });
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => 
@@ -43,7 +68,7 @@ export default function Onboarding() {
     );
   };
 
-  const handleProfileSubmit = async () => {
+  const handleProfileSubmit = () => {
     setError(null);
     
     if (!headline.trim()) {
@@ -57,57 +82,31 @@ export default function Onboarding() {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await createProfile({
-        headline: headline.trim(),
-        age: ageNum,
-        gender,
-        bio: bio.trim() || undefined,
-        tags: selectedTags,
-      });
-      setStep(2);
-    } catch (err: any) {
-      setError(err.message || "Failed to create profile");
-    } finally {
-      setIsSubmitting(false);
-    }
+    createProfileMutation.mutate();
   };
 
-  const handleLocationPermission = async () => {
-    setIsSubmitting(true);
-    try {
-      // Request geolocation
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
+  const handleLocationPermission = () => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        updateLocationMutation.mutate({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
         });
-      });
-
-      await updateLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        blurRadiusMeters: 200,
-        ghostModeEnabled: false,
-      });
-
-      setLocation("/");
-    } catch (err: any) {
-      // Allow skipping location for now
-      setLocation("/");
-    } finally {
-      setIsSubmitting(false);
-    }
+      },
+      () => {
+        setLocation("/");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
+    );
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-midnight-grid flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleSkipLocation = () => {
+    queryClient.invalidateQueries({ queryKey: ["auth"] });
+    setLocation("/");
+  };
 
   return (
     <div className="min-h-screen bg-midnight-grid flex flex-col items-center justify-center p-6">
@@ -227,11 +226,11 @@ export default function Onboarding() {
 
             <Button
               onClick={handleProfileSubmit}
-              disabled={isSubmitting}
+              disabled={createProfileMutation.isPending}
               className="w-full h-12 rounded-full bg-brand-accent-warm hover:bg-brand-accent-warm/90 text-background font-bold"
               data-testid="button-next"
             >
-              {isSubmitting ? "Saving..." : "Continue"}
+              {createProfileMutation.isPending ? "Saving..." : "Continue"}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -267,15 +266,15 @@ export default function Onboarding() {
 
           <Button
             onClick={handleLocationPermission}
-            disabled={isSubmitting}
+            disabled={updateLocationMutation.isPending}
             className="w-full h-12 rounded-full bg-brand-accent-warm hover:bg-brand-accent-warm/90 text-background font-bold mb-3"
             data-testid="button-enable-location"
           >
-            {isSubmitting ? "Getting location..." : "Enable Location"}
+            {updateLocationMutation.isPending ? "Getting location..." : "Enable Location"}
           </Button>
 
           <button
-            onClick={() => setLocation("/")}
+            onClick={handleSkipLocation}
             className="text-sm text-muted-foreground hover:text-white transition-colors"
             data-testid="button-skip"
           >
