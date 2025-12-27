@@ -57,7 +57,7 @@ export default function Profile() {
                            <Star className="w-5 h-5" />
                        </div>
                        <div className="flex-1">
-                           <h3 className="font-medium">Pulse+ Membership</h3>
+                           <h3 className="font-medium">Lockr+ Membership</h3>
                            <p className="text-xs text-muted-foreground">Upgrade for features</p>
                        </div>
                    </div>

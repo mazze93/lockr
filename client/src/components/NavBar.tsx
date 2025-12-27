@@ -8,7 +8,7 @@ export function NavBar() {
   const navItems = [
     { href: "/", icon: Map, label: "Map" },
     { href: "/messages", icon: MessageCircle, label: "Chat" },
-    { href: "/subscription", icon: Zap, label: "Pulse+" },
+    { href: "/subscription", icon: Zap, label: "Lockr+" },
     { href: "/profile", icon: User, label: "Profile" },
   ];
 

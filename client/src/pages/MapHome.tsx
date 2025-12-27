@@ -22,14 +22,17 @@ export default function MapHome() {
       {/* Map Header - Floating */}
       <div className="absolute top-0 left-0 right-0 z-40 p-4 pt-6 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none">
         <div className="flex items-center justify-between pointer-events-auto max-w-md mx-auto w-full">
-            <h1 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary drop-shadow-sm">
-                Pulse
-            </h1>
+            <div>
+                <h1 className="text-2xl font-display font-bold text-white drop-shadow-md flex items-center gap-2">
+                    LOCKR <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/20 font-mono text-muted-foreground">BETA</span>
+                </h1>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono">Secure Access</p>
+            </div>
             <div className="flex gap-2">
-                <Button size="icon" variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 backdrop-blur-md">
-                    <Filter className="w-5 h-5" />
+                <Button size="icon" variant="ghost" className="rounded-xl bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/5">
+                    <Filter className="w-5 h-5 text-muted-foreground" />
                 </Button>
-                 <Button size="icon" variant="ghost" className="rounded-full bg-primary/20 text-primary hover:bg-primary/30 backdrop-blur-md shadow-[0_0_15px_theme(colors.primary/40)]">
+                 <Button size="icon" variant="ghost" className="rounded-xl bg-primary/10 text-primary hover:bg-primary/20 backdrop-blur-md border border-primary/20 shadow-[0_0_15px_theme(colors.primary/20)]">
                     <Zap className="w-5 h-5 fill-current" />
                 </Button>
             </div>
@@ -37,13 +40,10 @@ export default function MapHome() {
       </div>
 
       {/* Map Container */}
-      <div className="w-full h-full relative" ref={constraintsRef}>
+      <div className="w-full h-full relative bg-locker-mesh" ref={constraintsRef}>
         <motion.div 
-            className="absolute bg-[#121214] w-[300vw] h-[300vh]"
+            className="absolute bg-locker-mesh w-[300vw] h-[300vh]"
             style={{ 
-                // Grid pattern background for map feel
-                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)',
-                backgroundSize: '40px 40px',
                 left: '-100vw',
                 top: '-100vh'
             }}

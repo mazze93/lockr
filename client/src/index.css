@@ -34,36 +34,37 @@
 }
 
 :root {
-  /* Dark Mode Default - Neon Nightlife Theme */
-  --background: 240 10% 4%; /* Very dark almost black */
-  --foreground: 0 0% 98%;
+  /* Dark Mode Default - Industrial Locker Room Theme */
+  --background: 220 15% 10%; /* Gunmetal Dark */
+  --foreground: 220 10% 98%;
 
-  --card: 240 10% 8%;
-  --card-foreground: 0 0% 98%;
+  --card: 220 15% 14%; /* Lighter Gunmetal */
+  --card-foreground: 220 10% 98%;
 
-  --popover: 240 10% 8%;
-  --popover-foreground: 0 0% 98%;
+  --popover: 220 15% 12%;
+  --popover-foreground: 220 10% 98%;
 
-  --primary: 315 100% 50%; /* Neon Pink */
+  /* Keep the neon accents but maybe slightly more 'electric' */
+  --primary: 315 100% 50%; /* Electric Pink */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 180 100% 45%; /* Electric Cyan */
-  --secondary-foreground: 240 10% 4%;
+  --secondary: 190 100% 50%; /* Electric Blue */
+  --secondary-foreground: 220 15% 10%;
 
-  --muted: 240 10% 15%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 220 10% 20%;
+  --muted-foreground: 220 10% 60%;
 
-  --accent: 240 10% 15%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 220 10% 25%;
+  --accent-foreground: 220 10% 98%;
 
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 240 10% 15%;
-  --input: 240 10% 15%;
+  --border: 220 10% 20%;
+  --input: 220 10% 20%;
   --ring: 315 100% 50%;
 
-  --radius: 0.75rem;
+  --radius: 0.5rem; /* Slightly more squared off for industrial feel */
 }
 
 @layer base {
@@ -91,5 +92,12 @@
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  
+  /* Industrial Mesh Pattern */
+  .bg-locker-mesh {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle at center, hsl(var(--muted)) 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
   }
 }
