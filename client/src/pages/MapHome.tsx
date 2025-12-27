@@ -23,13 +23,15 @@ export interface MapUser {
   coordinates: { x: number; y: number };
 }
 
+const DEFAULT_LOCATION = { lat: 40.7128, lng: -74.006 };
+
 export default function MapHome() {
   const [, setLocation] = useLocation();
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
   const [isLandmarkDrawerOpen, setIsLandmarkDrawerOpen] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>(DEFAULT_LOCATION);
   
   const { location, updateLocation } = useAuth();
   const createConversation = useCreateConversation();
@@ -50,7 +52,7 @@ export default function MapHome() {
           });
         },
         () => {
-          setUserLocation({ lat: 40.7128, lng: -74.006 });
+          // Keep default location on error
         }
       );
     }
@@ -101,7 +103,7 @@ export default function MapHome() {
     }
   };
 
-  if (!userLocation) {
+  if (false) {
     return (
       <div className="h-screen w-screen bg-background flex items-center justify-center">
         <div className="text-center">

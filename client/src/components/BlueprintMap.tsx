@@ -25,42 +25,83 @@ export function BlueprintMap({
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const landmarkMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const userPulseMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const initialCenterRef = useRef<{ lat: number; lng: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: blueprintMapStyle,
-      center: [center.lng, center.lat],
-      zoom: 15,
-      minZoom: 12,
-      maxZoom: 18,
-      attributionControl: false,
-    });
+    try {
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: blueprintMapStyle,
+        center: [center.lng, center.lat],
+        zoom: 15,
+        minZoom: 12,
+        maxZoom: 18,
+        attributionControl: false,
+        failIfMajorPerformanceCaveat: false,
+      });
 
-    map.current.addControl(
-      new maplibregl.AttributionControl({ compact: true }),
-      "bottom-left"
-    );
+      map.current.addControl(
+        new maplibregl.AttributionControl({ compact: true }),
+        "bottom-left"
+      );
 
-    map.current.on("load", () => {
-      setIsMapLoaded(true);
-      
-      if (externalLandmarks) {
-        setLandmarks(externalLandmarks);
-      } else {
-        setLandmarks(generateLandmarksForArea(center.lat, center.lng));
-      }
-    });
+      map.current.on("load", () => {
+        setIsMapLoaded(true);
+        setMapError(null);
+        initialCenterRef.current = { lat: center.lat, lng: center.lng };
+        
+        if (externalLandmarks) {
+          setLandmarks(externalLandmarks);
+        } else {
+          setLandmarks(generateLandmarksForArea(center.lat, center.lng));
+        }
+      });
+
+      map.current.on("error", (e) => {
+        console.error("Map error:", e);
+        setMapError("Map failed to load");
+      });
+
+    } catch (err) {
+      console.error("Failed to initialize map:", err);
+      setMapError("WebGL not supported");
+      setLandmarks(generateLandmarksForArea(center.lat, center.lng));
+    }
 
     return () => {
       map.current?.remove();
       map.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+    if (!initialCenterRef.current) return;
+    
+    const hasCenterChanged = 
+      Math.abs(center.lat - initialCenterRef.current.lat) > 0.0001 ||
+      Math.abs(center.lng - initialCenterRef.current.lng) > 0.0001;
+    
+    if (hasCenterChanged) {
+      map.current.flyTo({
+        center: [center.lng, center.lat],
+        zoom: 15,
+        duration: 1500,
+      });
+      
+      initialCenterRef.current = { lat: center.lat, lng: center.lng };
+      
+      if (!externalLandmarks) {
+        setLandmarks(generateLandmarksForArea(center.lat, center.lng));
+      }
+    }
+  }, [center, isMapLoaded, externalLandmarks]);
 
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
@@ -133,8 +174,10 @@ export function BlueprintMap({
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    const existingPulse = document.getElementById("user-pulse-marker");
-    if (existingPulse) existingPulse.remove();
+    if (userPulseMarkerRef.current) {
+      userPulseMarkerRef.current.setLngLat([center.lng, center.lat]);
+      return;
+    }
 
     const el = document.createElement("div");
     el.id = "user-pulse-marker";
@@ -146,7 +189,7 @@ export function BlueprintMap({
       </div>
     `;
 
-    new maplibregl.Marker({ element: el })
+    userPulseMarkerRef.current = new maplibregl.Marker({ element: el })
       .setLngLat([center.lng, center.lat])
       .addTo(map.current);
 
@@ -170,6 +213,21 @@ export function BlueprintMap({
         }}
       />
       
+      {/* Fallback for WebGL errors */}
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background" data-testid="map-fallback">
+          <div className="text-center p-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-secondary/20 flex items-center justify-center">
+              <svg className="w-8 h-8 text-brand-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Map Loading...</h3>
+            <p className="text-sm text-muted-foreground">Interactive map requires WebGL support</p>
+          </div>
+        </div>
+      )}
+      
       {/* Blueprint Grid Overlay */}
       <div 
         className="absolute inset-0 pointer-events-none opacity-10"
@@ -180,13 +238,14 @@ export function BlueprintMap({
           `,
           backgroundSize: "50px 50px",
         }}
+        data-testid="map-grid-overlay"
       />
 
       {/* Corner Decorations */}
-      <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-brand-secondary/50 pointer-events-none" />
-      <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-brand-secondary/50 pointer-events-none" />
-      <div className="absolute bottom-20 left-4 w-8 h-8 border-l-2 border-b-2 border-brand-secondary/50 pointer-events-none" />
-      <div className="absolute bottom-20 right-4 w-8 h-8 border-r-2 border-b-2 border-brand-secondary/50 pointer-events-none" />
+      <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-brand-secondary/50 pointer-events-none" data-testid="corner-decoration-tl" />
+      <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-brand-secondary/50 pointer-events-none" data-testid="corner-decoration-tr" />
+      <div className="absolute bottom-20 left-4 w-8 h-8 border-l-2 border-b-2 border-brand-secondary/50 pointer-events-none" data-testid="corner-decoration-bl" />
+      <div className="absolute bottom-20 right-4 w-8 h-8 border-r-2 border-b-2 border-brand-secondary/50 pointer-events-none" data-testid="corner-decoration-br" />
 
       {/* Accuracy Ring Visualization */}
       <div 
