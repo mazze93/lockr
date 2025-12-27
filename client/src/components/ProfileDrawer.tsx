@@ -1,17 +1,45 @@
 import { Drawer } from "vaul";
-import { User } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, MapPin, Zap } from "lucide-react";
-import { Link } from "wouter";
+import { MessageCircle, MapPin, Zap, Shield, Ban, MoreHorizontal } from "lucide-react";
+import { useLocation } from "wouter";
+import { useCreateConversation } from "@/hooks/useConversations";
+import { blockingAPI } from "@/lib/api";
+import { useState } from "react";
+import type { MapUser } from "@/pages/MapHome";
 
 interface ProfileDrawerProps {
-  user: User | null;
+  user: MapUser | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function ProfileDrawer({ user, isOpen, onClose }: ProfileDrawerProps) {
+  const [, setLocation] = useLocation();
+  const createConversation = useCreateConversation();
+  const [showOptions, setShowOptions] = useState(false);
+
   if (!user) return null;
+
+  const handleMessage = async () => {
+    try {
+      const result = await createConversation.mutateAsync(user.id);
+      onClose();
+      setLocation(`/messages/${result.conversation.id}`);
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+      onClose();
+      setLocation(`/messages`);
+    }
+  };
+
+  const handleBlock = async () => {
+    try {
+      await blockingAPI.block(user.id);
+      onClose();
+    } catch (error) {
+      console.error("Failed to block user:", error);
+    }
+  };
 
   return (
     <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -22,7 +50,7 @@ export function ProfileDrawer({ user, isOpen, onClose }: ProfileDrawerProps) {
             <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/30 mt-4 mb-2" />
             
             <div className="p-4 flex-1 overflow-y-auto">
-                <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden shadow-2xl mb-6 group">
+                <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden shadow-2xl mb-6 group bg-muted">
                     <img 
                         src={user.image} 
                         alt={user.name} 
@@ -30,17 +58,24 @@ export function ProfileDrawer({ user, isOpen, onClose }: ProfileDrawerProps) {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                     
+                    {/* Verified Badge */}
+                    <div className="absolute top-4 right-4 bg-status-secure/90 backdrop-blur-sm text-white rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium">
+                      <Shield className="w-3 h-3 fill-current" />
+                      Verified
+                    </div>
+                    
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                         <div className="flex items-end justify-between">
                             <div>
-                                <h2 className="text-4xl font-display font-bold text-white mb-1">
+                                <h2 className="text-4xl font-display font-bold text-white mb-1" data-testid="text-username">
                                     {user.name}, {user.age}
                                 </h2>
                                 <div className="flex items-center text-white/80 gap-2 text-sm font-medium">
-                                    <span className={`w-2 h-2 rounded-full ${user.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_theme(colors.green.500)]' : 'bg-gray-500'}`} />
+                                    <span className={`w-2 h-2 rounded-full ${user.status === 'online' ? 'bg-brand-accent-hot shadow-[0_0_10px_theme(colors.brand.accent.hot)]' : 'bg-gray-500'}`} />
                                     {user.status === 'online' ? 'Online Now' : 'Last seen recently'}
                                     <span className="mx-1">•</span>
-                                    <MapPin className="w-4 h-4" /> {user.distance} away
+                                    <MapPin className="w-4 h-4" /> 
+                                    <span data-testid="text-distance">{user.distance} away</span>
                                 </div>
                             </div>
                         </div>
@@ -49,39 +84,75 @@ export function ProfileDrawer({ user, isOpen, onClose }: ProfileDrawerProps) {
 
                 <div className="space-y-6 px-1">
                     <div className="flex gap-2 w-full">
-                         <Link href={`/messages?user=${user.id}`} className="flex-1">
-                            <Button size="lg" className="w-full text-lg font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl h-14 shadow-[0_0_20px_theme(colors.primary/30)]">
-                                <MessageCircle className="mr-2 w-5 h-5" />
-                                Say Hi
-                            </Button>
-                        </Link>
-                        <Button size="icon" variant="secondary" className="h-14 w-14 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20">
-                            <Zap className="w-6 h-6" />
+                        <Button 
+                          size="lg" 
+                          className="flex-1 text-lg font-semibold bg-brand-accent-warm hover:bg-brand-accent-warm/90 text-background rounded-xl h-14 shadow-lg"
+                          onClick={handleMessage}
+                          disabled={createConversation.isPending}
+                          data-testid="button-message"
+                        >
+                            <MessageCircle className="mr-2 w-5 h-5" />
+                            {createConversation.isPending ? "Opening..." : "Say Hi"}
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="secondary" 
+                          className="h-14 w-14 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20"
+                          onClick={() => setShowOptions(!showOptions)}
+                          data-testid="button-more"
+                        >
+                            <MoreHorizontal className="w-6 h-6" />
                         </Button>
                     </div>
 
+                    {/* More Options */}
+                    {showOptions && (
+                      <div className="bg-muted/30 rounded-xl p-3 border border-white/5">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                          onClick={handleBlock}
+                          data-testid="button-block"
+                        >
+                          <Ban className="w-4 h-4 mr-2" />
+                          Block User
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="space-y-3">
                         <h3 className="text-lg font-semibold text-white/90">About Me</h3>
-                        <p className="text-muted-foreground leading-relaxed text-base">
-                            {user.bio}
+                        <p className="text-muted-foreground leading-relaxed text-base" data-testid="text-bio">
+                            {user.bio || "No bio yet"}
                         </p>
                     </div>
 
-                    <div className="space-y-3">
-                        <h3 className="text-lg font-semibold text-white/90">Interests</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {user.tags.map(tag => (
-                                <span key={tag} className="px-4 py-2 bg-muted rounded-full text-sm font-medium text-white/80 border border-white/5">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
+                    {user.tags.length > 0 && (
+                      <div className="space-y-3">
+                          <h3 className="text-lg font-semibold text-white/90">Interests</h3>
+                          <div className="flex flex-wrap gap-2">
+                              {user.tags.map(tag => (
+                                  <span 
+                                    key={tag} 
+                                    className="px-4 py-2 bg-muted rounded-full text-sm font-medium text-white/80 border border-white/5"
+                                    data-testid={`tag-${tag}`}
+                                  >
+                                      {tag}
+                                  </span>
+                              ))}
+                          </div>
+                      </div>
+                    )}
                 </div>
             </div>
             
             <div className="p-4 border-t border-white/5 bg-card pb-8">
-                <Button variant="ghost" className="w-full text-muted-foreground hover:text-white" onClick={onClose}>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-muted-foreground hover:text-white" 
+                  onClick={onClose}
+                  data-testid="button-close"
+                >
                     Close Profile
                 </Button>
             </div>

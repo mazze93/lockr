@@ -1,15 +1,14 @@
-import { User } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Shield, Check } from "lucide-react";
+import { Shield } from "lucide-react";
+import type { MapUser } from "@/pages/MapHome";
 
 interface UserPinProps {
-  user: User;
-  onClick: (user: User) => void;
+  user: MapUser;
+  onClick: (user: MapUser) => void;
 }
 
 export function UserPin({ user, onClick }: UserPinProps) {
-  // Use Magenta (brand-accent-hot) for online, Teal (status-secure) for verification
   const isOnline = user.status === 'online';
   
   return (
@@ -19,9 +18,10 @@ export function UserPin({ user, onClick }: UserPinProps) {
       whileHover={{ scale: 1.15, zIndex: 10 }}
       whileTap={{ scale: 0.95 }}
       onClick={(e) => {
-        e.stopPropagation(); // Prevent map click
+        e.stopPropagation();
         onClick(user);
       }}
+      data-testid={`pin-user-${user.id}`}
     >
       <div className="relative">
         {/* Status Glow */}
@@ -31,7 +31,7 @@ export function UserPin({ user, onClick }: UserPinProps) {
         
         {/* Avatar Ring */}
         <div className={cn(
-            "w-12 h-12 rounded-full overflow-hidden border-2 shadow-xl transition-all duration-300 relative z-10",
+            "w-12 h-12 rounded-full overflow-hidden border-2 shadow-xl transition-all duration-300 relative z-10 bg-card",
             isOnline ? "border-brand-accent-hot" : "border-muted-foreground/40 grayscale"
         )}>
             <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
