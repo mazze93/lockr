@@ -1,12 +1,15 @@
-import { useRef, useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { UserPin } from "@/components/UserPin";
-import { ProfileDrawer } from "@/components/ProfileDrawer";
+import { useState, useEffect } from "react";
+import { BlueprintMap } from "@/components/BlueprintMap";
 import { Button } from "@/components/ui/button";
-import { Filter, Locate, Shield, Menu, Ghost } from "lucide-react";
+import { Filter, Shield, Menu, Ghost, X } from "lucide-react";
 import { NavBar } from "@/components/NavBar";
 import { useAuth } from "@/hooks/useAuth";
 import { useNearbyUsers } from "@/hooks/useNearbyUsers";
+import { Drawer } from "vaul";
+import type { Landmark } from "@/lib/mapStyle";
+import { LANDMARK_CATEGORIES } from "@/lib/mapStyle";
+import { useLocation } from "wouter";
+import { useCreateConversation } from "@/hooks/useConversations";
 
 export interface MapUser {
   id: string;
@@ -21,24 +24,24 @@ export interface MapUser {
 }
 
 export default function MapHome() {
-  const constraintsRef = useRef(null);
+  const [, setLocation] = useLocation();
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
+  const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
+  const [isLandmarkDrawerOpen, setIsLandmarkDrawerOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   
-  const { user, location, updateLocation } = useAuth();
-  
-  // Get user's location
+  const { location, updateLocation } = useAuth();
+  const createConversation = useCreateConversation();
+
   useEffect(() => {
     if (location) {
       setUserLocation({ lat: location.latitude, lng: location.longitude });
     } else {
-      // Request geolocation
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setUserLocation({ lat: latitude, lng: longitude });
-          // Update location in backend
           updateLocation({
             latitude,
             longitude,
@@ -47,7 +50,6 @@ export default function MapHome() {
           });
         },
         () => {
-          // Fallback to a default location for demo purposes
           setUserLocation({ lat: 40.7128, lng: -74.006 });
         }
       );
@@ -60,7 +62,6 @@ export default function MapHome() {
     5000
   );
 
-  // Transform API data to MapUser format or use demo users
   const mapUsers: MapUser[] = nearbyData?.users?.length
     ? nearbyData.users.map((u: any, index: number) => ({
         id: u.userId,
@@ -71,56 +72,85 @@ export default function MapHome() {
         bio: u.profile?.bio || "",
         tags: u.profile?.tags || [],
         status: u.isOnline ? 'online' : 'offline',
-        coordinates: generateCoordinates(index, nearbyData.users.length),
+        coordinates: { 
+          x: u.location.longitude, 
+          y: u.location.latitude 
+        },
       }))
-    : generateDemoUsers();
+    : generateDemoUsers(userLocation?.lat || 40.7128, userLocation?.lng || -74.006);
 
-  const handlePinClick = (user: MapUser) => {
+  const handleUserClick = (user: MapUser) => {
     setSelectedUser(user);
-    setIsDrawerOpen(true);
+    setIsUserDrawerOpen(true);
   };
 
+  const handleLandmarkClick = (landmark: Landmark) => {
+    setSelectedLandmark(landmark);
+    setIsLandmarkDrawerOpen(true);
+  };
+
+  const handleMessage = async () => {
+    if (!selectedUser) return;
+    try {
+      const result = await createConversation.mutateAsync(selectedUser.id);
+      setIsUserDrawerOpen(false);
+      setLocation(`/messages/${result.conversation.id}`);
+    } catch (error) {
+      setIsUserDrawerOpen(false);
+      setLocation(`/messages`);
+    }
+  };
+
+  if (!userLocation) {
+    return (
+      <div className="h-screen w-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Getting your location...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-foreground relative touch-none select-none">
-      {/* Map Header - Floating */}
+    <div className="h-screen w-screen overflow-hidden bg-background text-foreground relative">
+      {/* Map Header */}
       <div className="absolute top-0 left-0 right-0 z-40 p-4 pt-6 pointer-events-none">
         <div className="flex items-center justify-between pointer-events-auto max-w-md mx-auto w-full bg-card/80 backdrop-blur-lg border border-border/50 p-3 rounded-full shadow-lg">
-            <div className="flex items-center gap-3 pl-2">
-                 <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
-                    <Shield className="w-4 h-4 fill-current" />
-                 </div>
-                 <div>
-                    <h1 className="text-lg font-bold text-white leading-none">
-                        Lockr
-                    </h1>
-                    <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-status-secure animate-pulse" />
-                        SECURE • ENCRYPTED
-                    </p>
-                </div>
+          <div className="flex items-center gap-3 pl-2">
+            <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
+              <Shield className="w-4 h-4 fill-current" />
             </div>
-            <div className="flex gap-2">
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white"
-                  data-testid="button-filter"
-                >
-                    <Filter className="w-4 h-4" />
-                </Button>
-                 <Button 
-                   size="icon" 
-                   variant="ghost" 
-                   className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white"
-                   data-testid="button-menu"
-                 >
-                    <Menu className="w-4 h-4" />
-                </Button>
+            <div>
+              <h1 className="text-lg font-bold text-white leading-none">Lockr</h1>
+              <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-status-secure animate-pulse" />
+                SECURE • ENCRYPTED
+              </p>
             </div>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white"
+              data-testid="button-filter"
+            >
+              <Filter className="w-4 h-4" />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="rounded-full w-9 h-9 hover:bg-white/10 text-muted-foreground hover:text-white"
+              data-testid="button-menu"
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Ghost Mode Toggle */}
+      {/* Ghost Mode Indicator */}
       {location?.ghostModeEnabled && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-40 bg-muted/80 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex items-center gap-2">
           <Ghost className="w-4 h-4 text-brand-accent-warm" />
@@ -128,69 +158,136 @@ export default function MapHome() {
         </div>
       )}
 
-      {/* Map Container */}
-      <div className="w-full h-full relative bg-midnight-grid" ref={constraintsRef}>
-        <motion.div 
-            className="absolute bg-midnight-grid w-[300vw] h-[300vh]"
-            style={{ 
-                left: '-100vw',
-                top: '-100vh'
-            }}
-            drag
-            dragConstraints={{ left: -1000, right: 0, top: -1000, bottom: 0 }}
-            dragElastic={0.1}
-            dragMomentum={false}
-        >
-             {/* Map Decoration - Radar circles */}
-             <div className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
-                 <svg width="100%" height="100%">
-                    <circle cx="50%" cy="50%" r="200" stroke="rgba(18, 109, 127, 0.3)" strokeWidth="1" fill="none" />
-                    <circle cx="50%" cy="50%" r="400" stroke="rgba(18, 109, 127, 0.2)" strokeWidth="1" fill="none" />
-                    <circle cx="50%" cy="50%" r="600" stroke="rgba(18, 109, 127, 0.1)" strokeWidth="1" fill="none" />
-                 </svg>
-             </div>
+      {/* Blueprint Map */}
+      <BlueprintMap
+        center={userLocation}
+        users={mapUsers}
+        onUserClick={handleUserClick}
+        onLandmarkClick={handleLandmarkClick}
+        blurRadius={location?.blurRadiusMeters || 200}
+      />
 
-             {/* Users */}
-             {isLoading ? (
-               <div className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2">
-                 <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-               </div>
-             ) : (
-               mapUsers.map((user) => (
-                   <UserPin key={user.id} user={user} onClick={handlePinClick} />
-               ))
-             )}
-
-            {/* Current User location pulse */}
-            <div className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                 <div className="w-64 h-64 rounded-full bg-brand-primary/10 animate-pulse absolute -translate-x-1/2 -translate-y-1/2" />
-                 <div className="w-4 h-4 rounded-full bg-brand-primary border-2 border-white/50 absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center shadow-[0_0_20px_theme(colors.brand.primary)]">
-                 </div>
-            </div>
-
-        </motion.div>
-
-         {/* Location Badge */}
-        <div className="absolute right-4 bottom-24 z-40">
-            <div className="bg-card/80 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] text-muted-foreground font-medium shadow-xl flex items-center gap-2">
-                <Locate className="w-3 h-3 text-brand-primary" />
-                <span data-testid="text-accuracy">Accuracy: ~{location?.blurRadiusMeters || 200}m</span>
-            </div>
+      {/* Accuracy Badge */}
+      <div className="absolute left-4 bottom-24 z-40">
+        <div className="bg-card/80 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] text-muted-foreground font-medium shadow-xl flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
+          <span data-testid="text-accuracy">Accuracy: ~{location?.blurRadiusMeters || 200}m</span>
         </div>
       </div>
 
-      <ProfileDrawer 
-        user={selectedUser} 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-      />
+      {/* User Profile Drawer */}
+      <Drawer.Root open={isUserDrawerOpen} onOpenChange={(open) => !open && setIsUserDrawerOpen(false)}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+          <Drawer.Content className="bg-card flex flex-col rounded-t-[20px] max-h-[85vh] fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 outline-none">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/30 mt-4 mb-2" />
+            
+            {selectedUser && (
+              <div className="p-6 overflow-y-auto">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-brand-accent-hot shadow-xl bg-muted">
+                      <img src={selectedUser.image} alt={selectedUser.name} className="w-full h-full object-cover" />
+                    </div>
+                    {selectedUser.status === 'online' && (
+                      <div className="absolute bottom-1 right-1 w-4 h-4 bg-brand-accent-hot rounded-full border-2 border-card" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-white" data-testid="text-username">
+                      {selectedUser.name}, {selectedUser.age}
+                    </h2>
+                    <p className="text-sm text-muted-foreground" data-testid="text-distance">
+                      {selectedUser.distance} away
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="px-2 py-0.5 bg-status-secure/20 text-status-secure text-xs font-medium rounded-full flex items-center gap-1">
+                        <Shield className="w-3 h-3" />
+                        Verified
+                      </span>
+                      {selectedUser.status === 'online' && (
+                        <span className="px-2 py-0.5 bg-brand-accent-hot/20 text-brand-accent-hot text-xs font-medium rounded-full">
+                          Online
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedUser.bio && (
+                  <p className="text-foreground/80 text-sm mb-4" data-testid="text-bio">
+                    {selectedUser.bio}
+                  </p>
+                )}
+
+                {selectedUser.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {selectedUser.tags.map(tag => (
+                      <span key={tag} className="px-3 py-1.5 bg-muted/50 text-xs font-medium text-foreground/70 rounded-full border border-white/5">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleMessage}
+                  disabled={createConversation.isPending}
+                  className="w-full h-12 rounded-full bg-brand-accent-warm hover:bg-brand-accent-warm/90 text-background font-bold"
+                  data-testid="button-message"
+                >
+                  {createConversation.isPending ? "Opening chat..." : "Say Hi 👋"}
+                </Button>
+              </div>
+            )}
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+
+      {/* Landmark Drawer */}
+      <Drawer.Root open={isLandmarkDrawerOpen} onOpenChange={(open) => !open && setIsLandmarkDrawerOpen(false)}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+          <Drawer.Content className="bg-card flex flex-col rounded-t-[20px] max-h-[60vh] fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 outline-none">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/30 mt-4 mb-2" />
+            
+            {selectedLandmark && (
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <div 
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg border"
+                    style={{ 
+                      background: `${LANDMARK_CATEGORIES[selectedLandmark.category].color}20`,
+                      borderColor: `${LANDMARK_CATEGORIES[selectedLandmark.category].color}50`,
+                    }}
+                  >
+                    {LANDMARK_CATEGORIES[selectedLandmark.category].icon}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{selectedLandmark.name}</h2>
+                    <p className="text-sm text-muted-foreground capitalize">{selectedLandmark.category}</p>
+                  </div>
+                </div>
+                
+                {selectedLandmark.description && (
+                  <p className="text-foreground/80 text-sm mb-4">{selectedLandmark.description}</p>
+                )}
+
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="px-2 py-1 bg-muted/30 rounded-md">LGBTQ+ Friendly</span>
+                  <span className="px-2 py-1 bg-muted/30 rounded-md">Popular</span>
+                </div>
+              </div>
+            )}
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
 
       <NavBar />
     </div>
   );
 }
 
-// Helper functions
 function formatDistance(meters: number): string {
   if (meters < 1000) {
     return `${Math.round(meters)}m`;
@@ -198,17 +295,7 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
-function generateCoordinates(index: number, total: number): { x: number; y: number } {
-  // Distribute users around the center in a spiral pattern
-  const angle = (index / total) * 2 * Math.PI;
-  const radius = 10 + (index * 5);
-  const x = 50 + Math.cos(angle) * radius;
-  const y = 50 + Math.sin(angle) * radius;
-  return { x: Math.max(15, Math.min(85, x)), y: Math.max(15, Math.min(85, y)) };
-}
-
-function generateDemoUsers(): MapUser[] {
-  // Demo users for visual prototype when no real users exist
+function generateDemoUsers(centerLat: number, centerLng: number): MapUser[] {
   const demoNames = ["Jordan", "Casey", "Riley", "Taylor", "Morgan", "Jamie"];
   const demoBios = [
     "Art director by day, gamer by night. 🎨🎮",
@@ -226,24 +313,24 @@ function generateDemoUsers(): MapUser[] {
     ["Food", "Cooking", "Wine"],
     ["Friends", "Chat"],
   ];
-  const positions = [
-    { x: 45, y: 45 },
-    { x: 60, y: 30 },
-    { x: 20, y: 60 },
-    { x: 80, y: 75 },
-    { x: 30, y: 20 },
-    { x: 55, y: 65 },
-  ];
 
-  return demoNames.map((name, i) => ({
-    id: `demo-${i}`,
-    name,
-    age: 22 + i * 2,
-    distance: `${200 + i * 300}m`,
-    image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
-    bio: demoBios[i],
-    tags: demoTags[i],
-    status: i % 2 === 0 ? 'online' : 'offline',
-    coordinates: positions[i],
-  }));
+  return demoNames.map((name, i) => {
+    const angle = (i / demoNames.length) * 2 * Math.PI;
+    const distance = 0.003 + Math.random() * 0.008;
+    
+    return {
+      id: `demo-${i}`,
+      name,
+      age: 22 + i * 2,
+      distance: `${200 + i * 300}m`,
+      image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      bio: demoBios[i],
+      tags: demoTags[i],
+      status: i % 2 === 0 ? 'online' : 'offline',
+      coordinates: { 
+        x: centerLng + Math.cos(angle) * distance, 
+        y: centerLat + Math.sin(angle) * distance 
+      },
+    };
+  });
 }
