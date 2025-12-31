@@ -24,6 +24,7 @@ export const profiles = pgTable("profiles", {
   tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   photos: jsonb("photos").$type<{ id: string; url: string; isPrimary: boolean }[]>().notNull().default(sql`'[]'::jsonb`),
   primaryPhotoUrl: text("primary_photo_url"),
+  isVerified: boolean("is_verified").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
