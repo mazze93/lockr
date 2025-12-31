@@ -1,13 +1,13 @@
 import { 
-  users, profiles, locations, conversations, messages, blockedUsers,
+  users, profiles, locations, conversations, messages, blockedUsers, albums, photos,
   type User, type InsertUser, 
   type Profile, type InsertProfile,
   type Location, type InsertLocation,
   type Conversation, type Message, type InsertMessage,
-  type BlockedUser
+  type BlockedUser, type Album, type InsertAlbum, type Photo, type InsertPhoto
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, lt, gt } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, lt, gt, asc } from "drizzle-orm";
 
 export interface NearbyUser {
   userId: string;
@@ -57,6 +57,21 @@ export interface IStorage {
   unblockUser(blockerId: string, blockedId: string): Promise<void>;
   isBlocked(userOneId: string, userTwoId: string): Promise<boolean>;
   getBlockedUsers(userId: string): Promise<BlockedUser[]>;
+
+  // Albums
+  getAlbums(userId: string): Promise<Album[]>;
+  getAlbum(albumId: string): Promise<Album | undefined>;
+  createAlbum(album: InsertAlbum): Promise<Album>;
+  updateAlbum(albumId: string, updates: Partial<InsertAlbum>): Promise<Album | undefined>;
+  deleteAlbum(albumId: string): Promise<void>;
+
+  // Photos
+  getPhotos(userId: string, albumId?: string): Promise<Photo[]>;
+  getPhoto(photoId: string): Promise<Photo | undefined>;
+  createPhoto(photo: InsertPhoto): Promise<Photo>;
+  updatePhoto(photoId: string, updates: Partial<InsertPhoto>): Promise<Photo | undefined>;
+  deletePhoto(photoId: string): Promise<void>;
+  setPrimaryPhoto(userId: string, photoId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -315,6 +330,86 @@ export class DatabaseStorage implements IStorage {
 
   async getBlockedUsers(userId: string): Promise<BlockedUser[]> {
     return db.select().from(blockedUsers).where(eq(blockedUsers.blockerId, userId));
+  }
+
+  // Albums
+  async getAlbums(userId: string): Promise<Album[]> {
+    return db.select().from(albums)
+      .where(eq(albums.userId, userId))
+      .orderBy(asc(albums.sortOrder));
+  }
+
+  async getAlbum(albumId: string): Promise<Album | undefined> {
+    const [album] = await db.select().from(albums).where(eq(albums.id, albumId));
+    return album;
+  }
+
+  async createAlbum(album: InsertAlbum): Promise<Album> {
+    const [newAlbum] = await db.insert(albums).values(album).returning();
+    return newAlbum;
+  }
+
+  async updateAlbum(albumId: string, updates: Partial<InsertAlbum>): Promise<Album | undefined> {
+    const [updated] = await db.update(albums)
+      .set(updates)
+      .where(eq(albums.id, albumId))
+      .returning();
+    return updated;
+  }
+
+  async deleteAlbum(albumId: string): Promise<void> {
+    await db.delete(albums).where(eq(albums.id, albumId));
+  }
+
+  // Photos
+  async getPhotos(userId: string, albumId?: string): Promise<Photo[]> {
+    if (albumId) {
+      return db.select().from(photos)
+        .where(and(eq(photos.userId, userId), eq(photos.albumId, albumId)))
+        .orderBy(asc(photos.sortOrder));
+    }
+    return db.select().from(photos)
+      .where(eq(photos.userId, userId))
+      .orderBy(asc(photos.sortOrder));
+  }
+
+  async getPhoto(photoId: string): Promise<Photo | undefined> {
+    const [photo] = await db.select().from(photos).where(eq(photos.id, photoId));
+    return photo;
+  }
+
+  async createPhoto(photo: InsertPhoto): Promise<Photo> {
+    const [newPhoto] = await db.insert(photos).values(photo).returning();
+    return newPhoto;
+  }
+
+  async updatePhoto(photoId: string, updates: Partial<InsertPhoto>): Promise<Photo | undefined> {
+    const [updated] = await db.update(photos)
+      .set(updates)
+      .where(eq(photos.id, photoId))
+      .returning();
+    return updated;
+  }
+
+  async deletePhoto(photoId: string): Promise<void> {
+    await db.delete(photos).where(eq(photos.id, photoId));
+  }
+
+  async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
+    await db.update(photos)
+      .set({ isPrimary: false })
+      .where(eq(photos.userId, userId));
+    
+    const [photo] = await db.update(photos)
+      .set({ isPrimary: true })
+      .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
+      .returning();
+
+    if (photo) {
+      await db.update(profiles)
+        .set({ primaryPhotoUrl: photo.objectPath })
+        .where(eq(profiles.userId, userId));
+    }
   }
 }
 

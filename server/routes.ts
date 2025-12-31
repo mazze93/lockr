@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { insertProfileSchema, insertLocationSchema, insertMessageSchema } from "@shared/schema";
+import { insertProfileSchema, insertLocationSchema, insertMessageSchema, insertAlbumSchema, insertPhotoSchema } from "@shared/schema";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 // Session middleware types
 declare module "express-session" {
@@ -445,6 +446,144 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get blocked error:", error);
       return res.status(500).json({ message: "Failed to get blocked users" });
+    }
+  });
+
+  // ============ PHOTO & ALBUM ROUTES ============
+  
+  // Register object storage routes
+  registerObjectStorageRoutes(app);
+
+  // Get user's albums
+  app.get("/api/albums", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const albums = await storage.getAlbums(userId);
+      return res.json({ albums });
+    } catch (error) {
+      console.error("Get albums error:", error);
+      return res.status(500).json({ message: "Failed to get albums" });
+    }
+  });
+
+  // Create album
+  app.post("/api/albums", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const albumData = insertAlbumSchema.parse({ ...req.body, userId });
+      const album = await storage.createAlbum(albumData);
+      return res.json({ album });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid album data", errors: error.errors });
+      }
+      console.error("Create album error:", error);
+      return res.status(500).json({ message: "Failed to create album" });
+    }
+  });
+
+  // Update album
+  app.patch("/api/albums/:albumId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { albumId } = req.params;
+      
+      const album = await storage.getAlbum(albumId);
+      if (!album || album.userId !== userId) {
+        return res.status(404).json({ message: "Album not found" });
+      }
+
+      const updated = await storage.updateAlbum(albumId, req.body);
+      return res.json({ album: updated });
+    } catch (error) {
+      console.error("Update album error:", error);
+      return res.status(500).json({ message: "Failed to update album" });
+    }
+  });
+
+  // Delete album
+  app.delete("/api/albums/:albumId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { albumId } = req.params;
+      
+      const album = await storage.getAlbum(albumId);
+      if (!album || album.userId !== userId) {
+        return res.status(404).json({ message: "Album not found" });
+      }
+
+      await storage.deleteAlbum(albumId);
+      return res.json({ message: "Album deleted" });
+    } catch (error) {
+      console.error("Delete album error:", error);
+      return res.status(500).json({ message: "Failed to delete album" });
+    }
+  });
+
+  // Get user's photos
+  app.get("/api/photos", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { albumId } = req.query;
+      const photos = await storage.getPhotos(userId, albumId as string | undefined);
+      return res.json({ photos });
+    } catch (error) {
+      console.error("Get photos error:", error);
+      return res.status(500).json({ message: "Failed to get photos" });
+    }
+  });
+
+  // Create photo record (after upload)
+  app.post("/api/photos", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const photoData = insertPhotoSchema.parse({ ...req.body, userId });
+      const photo = await storage.createPhoto(photoData);
+      return res.json({ photo });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid photo data", errors: error.errors });
+      }
+      console.error("Create photo error:", error);
+      return res.status(500).json({ message: "Failed to create photo" });
+    }
+  });
+
+  // Set primary photo
+  app.post("/api/photos/:photoId/primary", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { photoId } = req.params;
+      
+      const photo = await storage.getPhoto(photoId);
+      if (!photo || photo.userId !== userId) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+
+      await storage.setPrimaryPhoto(userId, photoId);
+      return res.json({ message: "Primary photo updated" });
+    } catch (error) {
+      console.error("Set primary photo error:", error);
+      return res.status(500).json({ message: "Failed to set primary photo" });
+    }
+  });
+
+  // Delete photo
+  app.delete("/api/photos/:photoId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { photoId } = req.params;
+      
+      const photo = await storage.getPhoto(photoId);
+      if (!photo || photo.userId !== userId) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+
+      await storage.deletePhoto(photoId);
+      return res.json({ message: "Photo deleted" });
+    } catch (error) {
+      console.error("Delete photo error:", error);
+      return res.status(500).json({ message: "Failed to delete photo" });
     }
   });
 

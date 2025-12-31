@@ -19,13 +19,37 @@ export const profiles = pgTable("profiles", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   headline: text("headline").notNull(),
   age: integer("age").notNull(),
-  gender: text("gender").notNull(), // masculine, feminine, androgynous, not_specified, custom
+  gender: text("gender").notNull(),
   bio: text("bio"),
   tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   photos: jsonb("photos").$type<{ id: string; url: string; isPrimary: boolean }[]>().notNull().default(sql`'[]'::jsonb`),
   primaryPhotoUrl: text("primary_photo_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Photo albums
+export const albums = pgTable("albums", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  isPrivate: boolean("is_private").notNull().default(false),
+  coverPhotoId: varchar("cover_photo_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Photos with album support
+export const photos = pgTable("photos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  albumId: varchar("album_id").references(() => albums.id, { onDelete: "set null" }),
+  objectPath: text("object_path").notNull(),
+  caption: text("caption"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // User locations - separate table for privacy and performance
@@ -106,6 +130,24 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   content: z.string().min(1).max(5000),
 });
 
+export const insertAlbumSchema = createInsertSchema(albums).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  isPrivate: z.boolean().default(false),
+});
+
+export const insertPhotoSchema = createInsertSchema(photos).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  objectPath: z.string().min(1),
+  caption: z.string().max(500).optional(),
+  isPrimary: z.boolean().default(false),
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -121,3 +163,9 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 export type BlockedUser = typeof blockedUsers.$inferSelect;
+
+export type Album = typeof albums.$inferSelect;
+export type InsertAlbum = z.infer<typeof insertAlbumSchema>;
+
+export type Photo = typeof photos.$inferSelect;
+export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
