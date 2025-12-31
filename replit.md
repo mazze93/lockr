@@ -76,3 +76,26 @@ shared/           # Shared code between client/server
 ### Environment Variables Required
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Secret key for session encryption (optional, has default for development)
+
+## Recent Changes (Dec 31, 2025)
+
+### Passport/Wallet Profile UI
+- Added new PassportProfile component with leather texture gradient backgrounds (#2d1810 to #0d0805)
+- Gold accent color (#F8B654) for branding and embossed elements
+- Flipbook-style photo gallery with page-turn animations using Framer Motion
+- Printed-photo styling with sepia filters and shadow effects
+
+### Photo Album System
+- Added `albums` and `photos` database tables for organized photo storage
+- Added `isVerified` field to profiles schema
+- Photo upload via Replit Object Storage with presigned URLs
+- Primary photo selection with automatic profile update
+- Album organization with privacy settings
+
+### API Routes Added
+- GET/POST /api/albums - Album management
+- PATCH/DELETE /api/albums/:albumId - Album updates
+- GET/POST /api/photos - Photo management
+- POST /api/photos/:photoId/primary - Set primary photo
+- DELETE /api/photos/:photoId - Photo deletion
+- Object storage upload routes integrated
