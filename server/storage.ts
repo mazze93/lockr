@@ -396,6 +396,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
+    const [existingPhoto] = await db.select().from(photos)
+      .where(and(eq(photos.id, photoId), eq(photos.userId, userId)));
+
+    if (!existingPhoto) {
+      return;
+    }
+
     await db.update(photos)
       .set({ isPrimary: false })
       .where(eq(photos.userId, userId));
