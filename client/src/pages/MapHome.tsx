@@ -10,6 +10,7 @@ import type { Landmark } from "@/lib/mapStyle";
 import { LANDMARK_CATEGORIES } from "@/lib/mapStyle";
 import { useLocation } from "wouter";
 import { useCreateConversation } from "@/hooks/useConversations";
+import { transformNearbyUsers, formatDistance } from "@/utils/mapUserTransform";
 
 export interface MapUser {
   id: string;
@@ -65,20 +66,7 @@ export default function MapHome() {
   );
 
   const mapUsers: MapUser[] = nearbyData?.users?.length
-    ? nearbyData.users.map((u: any, index: number) => ({
-        id: u.userId,
-        name: u.profile?.headline?.split(',')[0] || `User ${index + 1}`,
-        age: u.profile?.age || 25,
-        distance: formatDistance(u.distance),
-        image: u.profile?.photos?.[0] || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.userId}`,
-        bio: u.profile?.bio || "",
-        tags: u.profile?.tags || [],
-        status: u.isOnline ? 'online' : 'offline',
-        coordinates: { 
-          x: u.location.longitude, 
-          y: u.location.latitude 
-        },
-      }))
+    ? transformNearbyUsers(nearbyData.users)
     : generateDemoUsers(userLocation?.lat || 40.7128, userLocation?.lng || -74.006);
 
   const handleUserClick = (user: MapUser) => {
@@ -288,13 +276,6 @@ export default function MapHome() {
       <NavBar />
     </div>
   );
-}
-
-function formatDistance(meters: number): string {
-  if (meters < 1000) {
-    return `${Math.round(meters)}m`;
-  }
-  return `${(meters / 1000).toFixed(1)}km`;
 }
 
 function generateDemoUsers(centerLat: number, centerLng: number): MapUser[] {
