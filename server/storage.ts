@@ -7,6 +7,7 @@ import {
   type BlockedUser, type Album, type InsertAlbum, type Photo, type InsertPhoto
 } from "@shared/schema";
 import { db } from "./db";
+import { applyPrimaryPhotoUpdate } from "./primary-photo";
 import { eq, and, or, desc, ne, sql, lt, gt, asc } from "drizzle-orm";
 
 export interface NearbyUser {
@@ -396,20 +397,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
-    await db.update(photos)
-      .set({ isPrimary: false })
-      .where(eq(photos.userId, userId));
-    
-    const [photo] = await db.update(photos)
-      .set({ isPrimary: true })
-      .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
-      .returning();
-
-    if (photo) {
-      await db.update(profiles)
-        .set({ primaryPhotoUrl: photo.objectPath })
-        .where(eq(profiles.userId, userId));
-    }
+    await applyPrimaryPhotoUpdate({
+      setPrimaryPhoto: async () => {
+        const [photo] = await db.update(photos)
+          .set({ isPrimary: true })
+          .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
+          .returning();
+        return photo;
+      },
+      clearOtherPrimaryPhotos: async () => {
+        await db.update(photos)
+          .set({ isPrimary: false })
+          .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
+      },
+      updateProfilePhotoUrl: async (photo) => {
+        await db.update(profiles)
+          .set({ primaryPhotoUrl: photo.objectPath })
+          .where(eq(profiles.userId, userId));
+      },
+    });
   }
 }
 
