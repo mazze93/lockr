@@ -118,7 +118,7 @@ test("applyPrimaryPhotoUpdate propagates errors from updateProfilePhotoUrl", asy
       return true;
     },
   );
-  
+
   // Verify that clearOtherPrimaryPhotos was called before the error
   assert.equal(cleared, true);
 });
