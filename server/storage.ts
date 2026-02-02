@@ -161,6 +161,8 @@ export class DatabaseStorage implements IStorage {
     const allBlockedIds = Array.from(new Set([...blockedIds, ...blockedByIds]));
 
     // Get all locations with joined user and profile data in a single query
+    // Using innerJoin ensures we only get users with complete profiles,
+    // which is required for displaying on the map (same as original if (profile && user) check)
     const locationsWithData = await db
       .select({
         location: locations,
