@@ -397,24 +397,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
-    await applyPrimaryPhotoUpdate({
-      setPrimaryPhoto: async () => {
-        const [photo] = await db.update(photos)
-          .set({ isPrimary: true })
-          .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
-          .returning();
-        return photo;
-      },
-      clearOtherPrimaryPhotos: async () => {
-        await db.update(photos)
-          .set({ isPrimary: false })
-          .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
-      },
-      updateProfilePhotoUrl: async (photo) => {
-        await db.update(profiles)
-          .set({ primaryPhotoUrl: photo.objectPath })
-          .where(eq(profiles.userId, userId));
-      },
+    await db.transaction(async (tx) => {
+      await applyPrimaryPhotoUpdate({
+        setPrimaryPhoto: async () => {
+          const [photo] = await tx.update(photos)
+            .set({ isPrimary: true })
+            .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
+            .returning();
+          return photo;
+        },
+        clearOtherPrimaryPhotos: async () => {
+          await tx.update(photos)
+            .set({ isPrimary: false })
+            .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
+        },
+        updateProfilePhotoUrl: async (photo) => {
+          await tx.update(profiles)
+            .set({ primaryPhotoUrl: photo.objectPath })
+            .where(eq(profiles.userId, userId));
+        },
+      });
     });
   }
 }
