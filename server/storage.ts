@@ -164,6 +164,16 @@ export class DatabaseStorage implements IStorage {
     // Using innerJoin ensures we only get users with complete profiles,
     // which is required for displaying on the map (same as original if (profile && user) check)
     // Filter blocked users in the WHERE clause to reduce data fetched from DB
+    const whereConditions = [
+      ne(locations.userId, userId),
+      eq(locations.ghostModeEnabled, false)
+    ];
+    
+    // Only add blocked users filter if there are any blocked users
+    if (allBlockedIds.length > 0) {
+      whereConditions.push(notInArray(locations.userId, allBlockedIds));
+    }
+    
     const locationsWithData = await db
       .select({
         location: locations,
@@ -173,11 +183,7 @@ export class DatabaseStorage implements IStorage {
       .from(locations)
       .innerJoin(users, eq(locations.userId, users.id))
       .innerJoin(profiles, eq(locations.userId, profiles.userId))
-      .where(and(
-        ne(locations.userId, userId),
-        eq(locations.ghostModeEnabled, false),
-        allBlockedIds.length > 0 ? notInArray(locations.userId, allBlockedIds) : sql`true`
-      ));
+      .where(and(...whereConditions));
 
     const nearbyUsers: NearbyUser[] = [];
 
