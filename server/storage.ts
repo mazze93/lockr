@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { applyPrimaryPhotoUpdate } from "./primary-photo";
-import { eq, and, or, desc, ne, sql, lt, gt, asc } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, lt, gt, asc, notInArray } from "drizzle-orm";
 
 export interface NearbyUser {
   userId: string;
@@ -163,6 +163,7 @@ export class DatabaseStorage implements IStorage {
     // Get all locations with joined user and profile data in a single query
     // Using innerJoin ensures we only get users with complete profiles,
     // which is required for displaying on the map (same as original if (profile && user) check)
+    // Filter blocked users in the WHERE clause to reduce data fetched from DB
     const locationsWithData = await db
       .select({
         location: locations,
@@ -174,14 +175,13 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(profiles, eq(locations.userId, profiles.userId))
       .where(and(
         ne(locations.userId, userId),
-        eq(locations.ghostModeEnabled, false)
+        eq(locations.ghostModeEnabled, false),
+        allBlockedIds.length > 0 ? notInArray(locations.userId, allBlockedIds) : sql`true`
       ));
 
     const nearbyUsers: NearbyUser[] = [];
 
     for (const { location: loc, user, profile } of locationsWithData) {
-      if (allBlockedIds.includes(loc.userId)) continue;
-
       const locLat = parseFloat(loc.latitude);
       const locLng = parseFloat(loc.longitude);
       
