@@ -396,27 +396,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
-    const [existingPhoto] = await db.select().from(photos)
-      .where(and(eq(photos.id, photoId), eq(photos.userId, userId)));
+    await db.transaction(async (tx) => {
+      // Ensure the photo exists and belongs to the user *within the transaction*
+      const [existing] = await tx.select().from(photos)
+        .where(and(eq(photos.id, photoId), eq(photos.userId, userId)));
 
-    if (!existingPhoto) {
-      return;
-    }
+      if (!existing) return;
 
-    await db.update(photos)
-      .set({ isPrimary: false })
-      .where(eq(photos.userId, userId));
-    
-    const [photo] = await db.update(photos)
-      .set({ isPrimary: true })
-      .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
-      .returning();
+      // Clear others first
+      await tx.update(photos)
+        .set({ isPrimary: false })
+        .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
 
-    if (photo) {
-      await db.update(profiles)
-        .set({ primaryPhotoUrl: photo.objectPath })
+      // Set target as primary and capture it
+      const [updated] = await tx.update(photos)
+        .set({ isPrimary: true })
+        .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
+        .returning();
+
+      if (!updated) return;
+
+      // Keep profile in sync
+      await tx.update(profiles)
+        .set({ primaryPhotoUrl: updated.objectPath })
         .where(eq(profiles.userId, userId));
-    }
+    });
   }
 }
 
