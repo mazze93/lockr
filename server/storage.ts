@@ -160,8 +160,16 @@ export class DatabaseStorage implements IStorage {
     const blockedByIds = blockedBy.map((b: BlockedUser) => b.blockerId);
     const allBlockedIds = Array.from(new Set([...blockedIds, ...blockedByIds]));
 
-    // Get all locations (excluding ghost mode and blocked users)
-    const allLocations = await db.select().from(locations)
+    // Get all locations with joined user and profile data in a single query
+    const locationsWithData = await db
+      .select({
+        location: locations,
+        user: users,
+        profile: profiles,
+      })
+      .from(locations)
+      .innerJoin(users, eq(locations.userId, users.id))
+      .innerJoin(profiles, eq(locations.userId, profiles.userId))
       .where(and(
         ne(locations.userId, userId),
         eq(locations.ghostModeEnabled, false)
@@ -169,7 +177,7 @@ export class DatabaseStorage implements IStorage {
 
     const nearbyUsers: NearbyUser[] = [];
 
-    for (const loc of allLocations) {
+    for (const { location: loc, user, profile } of locationsWithData) {
       if (allBlockedIds.includes(loc.userId)) continue;
 
       const locLat = parseFloat(loc.latitude);
@@ -186,22 +194,17 @@ export class DatabaseStorage implements IStorage {
       const distance = R * c;
 
       if (distance <= radiusMeters) {
-        const profile = await this.getProfile(loc.userId);
-        const user = await this.getUser(loc.userId);
-        
-        if (profile && user) {
-          nearbyUsers.push({
-            userId: loc.userId,
-            profile,
-            location: {
-              latitude: locLat,
-              longitude: locLng,
-              blurRadiusMeters: loc.blurRadiusMeters,
-            },
-            isOnline: user.isOnline,
-            distance: Math.round(distance),
-          });
-        }
+        nearbyUsers.push({
+          userId: loc.userId,
+          profile,
+          location: {
+            latitude: locLat,
+            longitude: locLng,
+            blurRadiusMeters: loc.blurRadiusMeters,
+          },
+          isOnline: user.isOnline,
+          distance: Math.round(distance),
+        });
       }
     }
 
