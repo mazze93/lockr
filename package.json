@@ -10,8 +10,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test": "node --test --import tsx server/__tests__/primary-photo.test.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.18.0",

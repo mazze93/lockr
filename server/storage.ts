@@ -7,7 +7,8 @@ import {
   type BlockedUser, type Album, type InsertAlbum, type Photo, type InsertPhoto
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, lt, gt, asc } from "drizzle-orm";
+import { applyPrimaryPhotoUpdate } from "./primary-photo";
+import { eq, and, or, desc, ne, sql, lt, gt, asc, notInArray } from "drizzle-orm";
 
 export interface NearbyUser {
   userId: string;
@@ -159,18 +160,34 @@ export class DatabaseStorage implements IStorage {
     const blockedByIds = blockedBy.map((b: BlockedUser) => b.blockerId);
     const allBlockedIds = Array.from(new Set([...blockedIds, ...blockedByIds]));
 
-    // Get all locations (excluding ghost mode and blocked users)
-    const allLocations = await db.select().from(locations)
-      .where(and(
-        ne(locations.userId, userId),
-        eq(locations.ghostModeEnabled, false)
-      ));
+    // Get all locations with joined user and profile data in a single query
+    // Using innerJoin ensures we only get users with complete profiles,
+    // which is required for displaying on the map (same as original if (profile && user) check)
+    // Filter blocked users in the WHERE clause to reduce data fetched from DB
+    const whereConditions = [
+      ne(locations.userId, userId),
+      eq(locations.ghostModeEnabled, false)
+    ];
+    
+    // Only add blocked users filter if there are any blocked users
+    if (allBlockedIds.length > 0) {
+      whereConditions.push(notInArray(locations.userId, allBlockedIds));
+    }
+    
+    const locationsWithData = await db
+      .select({
+        location: locations,
+        user: users,
+        profile: profiles,
+      })
+      .from(locations)
+      .innerJoin(users, eq(locations.userId, users.id))
+      .innerJoin(profiles, eq(locations.userId, profiles.userId))
+      .where(and(...whereConditions));
 
     const nearbyUsers: NearbyUser[] = [];
 
-    for (const loc of allLocations) {
-      if (allBlockedIds.includes(loc.userId)) continue;
-
+    for (const { location: loc, user, profile } of locationsWithData) {
       const locLat = parseFloat(loc.latitude);
       const locLng = parseFloat(loc.longitude);
       
@@ -185,22 +202,17 @@ export class DatabaseStorage implements IStorage {
       const distance = R * c;
 
       if (distance <= radiusMeters) {
-        const profile = await this.getProfile(loc.userId);
-        const user = await this.getUser(loc.userId);
-        
-        if (profile && user) {
-          nearbyUsers.push({
-            userId: loc.userId,
-            profile,
-            location: {
-              latitude: locLat,
-              longitude: locLng,
-              blurRadiusMeters: loc.blurRadiusMeters,
-            },
-            isOnline: user.isOnline,
-            distance: Math.round(distance),
-          });
-        }
+        nearbyUsers.push({
+          userId: loc.userId,
+          profile,
+          location: {
+            latitude: locLat,
+            longitude: locLng,
+            blurRadiusMeters: loc.blurRadiusMeters,
+          },
+          isOnline: user.isOnline,
+          distance: Math.round(distance),
+        });
       }
     }
 
@@ -397,29 +409,25 @@ export class DatabaseStorage implements IStorage {
 
   async setPrimaryPhoto(userId: string, photoId: string): Promise<void> {
     await db.transaction(async (tx) => {
-      // Ensure the photo exists and belongs to the user *within the transaction*
-      const [existing] = await tx.select().from(photos)
-        .where(and(eq(photos.id, photoId), eq(photos.userId, userId)));
-
-      if (!existing) return;
-
-      // Clear others first
-      await tx.update(photos)
-        .set({ isPrimary: false })
-        .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
-
-      // Set target as primary and capture it
-      const [updated] = await tx.update(photos)
-        .set({ isPrimary: true })
-        .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
-        .returning();
-
-      if (!updated) return;
-
-      // Keep profile in sync
-      await tx.update(profiles)
-        .set({ primaryPhotoUrl: updated.objectPath })
-        .where(eq(profiles.userId, userId));
+      await applyPrimaryPhotoUpdate({
+        setPrimaryPhoto: async () => {
+          const [photo] = await tx.update(photos)
+            .set({ isPrimary: true })
+            .where(and(eq(photos.id, photoId), eq(photos.userId, userId)))
+            .returning();
+          return photo;
+        },
+        clearOtherPrimaryPhotos: async () => {
+          await tx.update(photos)
+            .set({ isPrimary: false })
+            .where(and(eq(photos.userId, userId), ne(photos.id, photoId)));
+        },
+        updateProfilePhotoUrl: async (photo) => {
+          await tx.update(profiles)
+            .set({ primaryPhotoUrl: photo.objectPath })
+            .where(eq(profiles.userId, userId));
+        },
+      });
     });
   }
 }

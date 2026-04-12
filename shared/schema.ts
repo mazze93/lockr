@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, decimal, boolean, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, decimal, boolean, integer, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -51,7 +51,12 @@ export const photos = pgTable("photos", {
   isPrimary: boolean("is_primary").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  // Partial unique index: only one primary photo per user
+  uniquePrimaryPhotoPerUser: uniqueIndex("unique_primary_photo_per_user")
+    .on(table.userId)
+    .where(sql`${table.isPrimary} = true`),
+}));
 
 // User locations - separate table for privacy and performance
 export const locations = pgTable("locations", {
