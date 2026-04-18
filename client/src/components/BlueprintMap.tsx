@@ -43,7 +43,6 @@ export function BlueprintMap({
         minZoom: 12,
         maxZoom: 18,
         attributionControl: false,
-        failIfMajorPerformanceCaveat: false,
       });
 
       map.current.addControl(
