@@ -22,5 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run unit tests (skipped: no npm test script configured)
-        run: echo "No npm 'test' script defined in package.json. Skipping unit tests."
+      - name: Run unit tests
+        run: |  
+          if [ -z "$(node -e 'const p=require("./package.json"); process.stdout.write(p.scripts&&p.scripts.test||"")')" ]; then
+            echo "No npm test script defined in package.json. Skipping unit tests."
+          else
+            npm test
+          fi
