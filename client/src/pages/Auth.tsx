@@ -1,185 +1,38 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { authAPI } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Shield, Lock, Eye, EyeOff, Mail, AlertCircle } from "lucide-react";
+import { AuthForm } from "@/pages/auth/AuthForm";
+import { AuthBackground, AuthHeader } from "@/pages/auth/AuthVisual";
+import { useAuthPage } from "@/pages/auth/useAuthPage";
 
+/** Main Auth page with responsive layout and accessible onboarding flow. */
 export default function Auth() {
-  const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
-  
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loginMutation = useMutation({
-    mutationFn: () => authAPI.login(email, password),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
-      setLocation("/onboarding");
-    },
-    onError: (err: Error) => {
-      setError(err.message || "Login failed");
-    },
-  });
-
-  const signupMutation = useMutation({
-    mutationFn: () => authAPI.signup(email, password),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
-      setLocation("/onboarding");
-    },
-    onError: (err: Error) => {
-      setError(err.message || "Signup failed");
-    },
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!email || !password) {
-      setError("Email and password are required");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
-    if (mode === "login") {
-      loginMutation.mutate();
-    } else {
-      signupMutation.mutate();
-    }
-  };
-
-  const isLoading = loginMutation.isPending || signupMutation.isPending;
+  const { state, isLoading, handleSubmit, toggleShowPassword } = useAuthPage();
 
   return (
-    <div className="min-h-screen bg-midnight-grid flex flex-col items-center justify-center p-6">
-      {/* Logo */}
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-card border border-white/10 mb-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 to-transparent" />
-          <Shield className="w-10 h-10 text-brand-primary" />
-        </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
-          Lockr
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Map. Connect. Stay Private.
-        </p>
+    <main className="relative min-h-screen bg-midnight-grid flex flex-col items-center justify-start px-6 pb-10 pt-10 sm:justify-center sm:py-6">
+      <AuthBackground />
+      <div className="relative z-10 w-full max-w-md">
+        <section aria-labelledby="auth-heading">
+          <h2 id="auth-heading" className="sr-only">Welcome to Lockr</h2>
+          <p className="sr-only">
+            Illustrated locker room scene behind the login form reinforces the Lockr privacy theme.
+          </p>
+          <AuthHeader />
+        </section>
+        <section aria-label="Authentication form">
+          <AuthForm
+            email={state.email}
+            error={state.error}
+            isLoading={isLoading}
+            mode={state.mode}
+            password={state.password}
+            showPassword={state.showPassword}
+            onEmailChange={state.setEmail}
+            onModeChange={state.handleModeChange}
+            onPasswordChange={state.setPassword}
+            onShowPasswordToggle={toggleShowPassword}
+            onSubmit={handleSubmit}
+          />
+        </section>
       </div>
-
-      {/* Auth Form */}
-      <div className="w-full max-w-sm">
-        <div className="bg-card border border-white/10 rounded-2xl p-6 shadow-xl">
-          {/* Mode Toggle */}
-          <div className="flex bg-muted/30 rounded-full p-1 mb-6">
-            <button
-              type="button"
-              onClick={() => { setMode("login"); setError(null); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-full transition-all ${
-                mode === "login"
-                  ? "bg-card text-white shadow-sm"
-                  : "text-muted-foreground hover:text-white"
-              }`}
-              data-testid="tab-login"
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode("signup"); setError(null); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-full transition-all ${
-                mode === "signup"
-                  ? "bg-card text-white shadow-sm"
-                  : "text-muted-foreground hover:text-white"
-              }`}
-              data-testid="tab-signup"
-            >
-              Create Account
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="pl-10 bg-muted/30 border-transparent focus:border-brand-primary focus:bg-muted/50 transition-all"
-                  data-testid="input-email"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 8 characters"
-                  className="pl-10 pr-10 bg-muted/30 border-transparent focus:border-brand-primary focus:bg-muted/50 transition-all"
-                  data-testid="input-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="flex items-center gap-2 text-sm text-red-400 bg-red-900/20 p-3 rounded-lg border border-red-900/50">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* Submit */}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-12 rounded-full bg-brand-accent-warm hover:bg-brand-accent-warm/90 text-background font-bold text-sm uppercase tracking-widest shadow-lg disabled:opacity-50"
-              data-testid="button-submit"
-            >
-              {isLoading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
-            </Button>
-          </form>
-
-          {/* Security Notice */}
-          {mode === "signup" && (
-            <div className="mt-6 pt-4 border-t border-white/5">
-              <div className="flex items-start gap-3 text-sm text-muted-foreground">
-                <Shield className="w-5 h-5 text-brand-primary flex-shrink-0 mt-0.5" />
-                <p>
-                  Your privacy is protected. Messages are encrypted. Location is blurred.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    </main>
   );
 }
