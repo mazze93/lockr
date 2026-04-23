@@ -23,8 +23,9 @@ jobs:
         run: npm install
 
       - name: Run unit tests
-        run: |  
-          if [ -z "$(node -e 'const p=require("./package.json"); process.stdout.write(p.scripts&&p.scripts.test||"")')" ]; then
+        run: |
+          TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write(p.scripts&&p.scripts.test||'')")
+          if [ -z "$TEST_SCRIPT" ]; then
             echo "No npm test script defined in package.json. Skipping unit tests."
           else
             npm test
