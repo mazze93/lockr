@@ -13,7 +13,7 @@
     "test": "node --test --import tsx server/__tests__/primary-photo.test.ts"
   },
   "dependencies": {
-    "@google-cloud/storage": "^7.18.0",
+    "@google-cloud/storage": "^7.19.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -107,7 +107,7 @@
     "@vitest/ui": "^4.0.17",
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.4",
-    "esbuild": "^0.25.11",
+    "esbuild": "^0.25.12",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
