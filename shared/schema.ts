@@ -117,6 +117,12 @@ export const insertProfileSchema = createInsertSchema(profiles).omit({
   gender: z.enum(["masculine", "feminine", "androgynous", "not_specified", "custom"]),
   bio: z.string().max(500).optional(),
   tags: z.array(z.string()).default([]),
+  photos: z.array(z.object({
+    id: z.string(),
+    url: z.string().url(),
+    isPrimary: z.boolean(),
+  })).default([]),
+  primaryPhotoUrl: z.string().url().optional(),
 });
 
 export const insertLocationSchema = createInsertSchema(locations).omit({
