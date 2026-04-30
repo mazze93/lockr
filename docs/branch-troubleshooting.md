@@ -31,14 +31,6 @@ git checkout -b fix/<short-description>
 
 Then continue normal commit flow and open/update the PR from the new branch.
 
-### Quick recovery one-liner
-
-If you are already at the correct commit and just need a valid branch immediately:
-
-```bash
-git checkout -b fix/fresh-branch-from-head
-```
-
 ## 4) Verify before PR creation
 
 ```bash
