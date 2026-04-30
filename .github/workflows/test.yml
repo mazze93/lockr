@@ -1,0 +1,32 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run unit tests
+        run: |
+          TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write(p.scripts&&p.scripts.test||'')")
+          if [ -z "$TEST_SCRIPT" ]; then
+            echo "No npm test script defined in package.json. Skipping unit tests."
+          else
+            npm test
+          fi
