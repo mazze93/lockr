@@ -119,4 +119,3 @@ MIT — free to use, fork, and build on. Attribution appreciated.
   Made with 🔒 + 🏳️‍🌈 by <a href="https://github.com/mazze93">Mazze LeCzzare Frazer</a>
 </p>
 
-MIT — free to use, fork, and 
